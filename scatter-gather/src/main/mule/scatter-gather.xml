@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:db="http://www.mulesoft.org/schema/mule/db" xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
+	xmlns:http="http://www.mulesoft.org/schema/mule/http"
+	xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
+http://www.mulesoft.org/schema/mule/db http://www.mulesoft.org/schema/mule/db/current/mule-db.xsd">
+	<http:listener-config name="HTTP_Listener_config" doc:name="HTTP Listener config" doc:id="c993c330-ecb0-40fe-ba33-026e05371110" >
+		<http:listener-connection host="0.0.0.0" port="8081" />
+	</http:listener-config>
+	<db:config name="Database_Config" doc:name="Database Config" doc:id="37f95eb9-a089-4349-93bb-80256676914a" >
+		<db:my-sql-connection host="database-1.c6tleeitdrnq.us-east-1.rds.amazonaws.com" port="3306" user="admin" password="9390095446" database="Naanii" />
+	</db:config>
+	<flow name="scatter-gatherFlow" doc:id="23803c3b-7ec4-47f9-8621-d69aae90bca2" >
+		<http:listener doc:name="Listener" doc:id="affd95c8-f6ed-448b-b514-f5f9f41ec8e6" config-ref="HTTP_Listener_config" path="/scatter/*"/>
+		<logger level="INFO" doc:name="Logger" doc:id="79d81396-739c-41c6-a8a8-7032e76020ae" message="Request Received"/>
+		<scatter-gather doc:name="Scatter-Gather" doc:id="5f062d36-6560-4c70-81f8-e954b5da352e" >
+			<route >
+				<logger level="INFO" doc:name="Logger" doc:id="9209962c-b7ce-4395-9782-b8bb56907dab" message="First Route"/>
+				<ee:transform doc:name="Transform Message" doc:id="c141b19e-1b8e-4cbb-b47d-06d5a1c907ca" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	"orderId" : 123456789,
+	"productName" : "Herbal Product",
+	"expiryDate" : "21-05-2023"
+}]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</route>
+			<route >
+				<logger level="INFO" doc:name="Logger" doc:id="1c07a9a9-7e63-49bf-8186-aa6d00d3a9ae" message="Second Route"/>
+				<ee:transform doc:name="Transform Message" doc:id="47a5c91b-0b7f-4ef7-ad6d-5e7558f8fc5b" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	"DeliverBy" : "Ekart systems private ltd"
+}]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</route>
+			<route >
+				<logger level="INFO" doc:name="Logger" doc:id="f7e0a648-1189-412a-9258-79a386cdf308" message="Third Route"/>
+				<db:select doc:name="Select" doc:id="df75295b-772d-4654-bf1f-01880ec17368" config-ref="Database_Config">
+					<db:sql ><![CDATA[Select name,email,address,telephone from Naanii where id = :id]]></db:sql>
+					<db:input-parameters ><![CDATA[#[{
+	id : payload.customerid
+}]]]></db:input-parameters>
+				</db:select>
+				<ee:transform doc:name="Transform Message" doc:id="99b0177d-8d8a-4376-8e4f-607f063a49e6" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</route>
+		</scatter-gather>
+		<ee:transform doc:name="Transform Message" doc:id="a2833563-247a-4f11-938c-b76d7f4f266b" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	OrderDetails : payload."0".payload,
+	DeliveryBy : payload."1".payload,
+	ProductOrderedCustomer : payload."2".payload
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+	</flow>
+</mule>
